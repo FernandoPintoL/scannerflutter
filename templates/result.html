@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultados del Análisis - Detector de Widgets Flutter</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .container {
+            max-width: 1000px;
+        }
+        .header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e5e5e5;
+        }
+        .result-section {
+            margin-bottom: 2rem;
+        }
+        .image-container {
+            margin-bottom: 1.5rem;
+        }
+        .image-container img {
+            max-width: 100%;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+        }
+        .component-card {
+            margin-bottom: 1rem;
+        }
+        .subcomponent {
+            margin-left: 1.5rem;
+        }
+        .footer {
+            margin-top: 3rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e5e5;
+            text-align: center;
+            color: #6c757d;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.25rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="header">
+            <h1 class="display-5">Resultados del Análisis</h1>
+            <p class="lead">Componentes de Flutter UI detectados en la imagen</p>
+            <a href="/" class="btn btn-outline-primary">← Volver al inicio</a>
+        </div>
+
+        <div class="row result-section">
+            <div class="col-md-6">
+                <h2>Imagen Original</h2>
+                <div class="image-container">
+                    <img src="{{ original_image }}" alt="Imagen Original" class="img-fluid">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h2>Imagen Anotada</h2>
+                <div class="image-container">
+                    <img src="{{ annotated_image }}" alt="Imagen Anotada" class="img-fluid">
+                </div>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <h2>Componentes Detectados</h2>
+            <div class="row">
+                {% for component in report.components %}
+                <div class="col-md-6">
+                    <div class="card component-card">
+                        <div class="card-header bg-primary text-white">
+                            {{ component.type }} (Confianza: {{ "%.2f"|format(component.confidence*100) }}%)
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Coordenadas:</strong> [{{ component.coordinates|join(', ') }}]</p>
+                            
+                            {% if component.subcomponents %}
+                            <h6>Subcomponentes:</h6>
+                            <ul>
+                                {% for sub in component.subcomponents %}
+                                <li class="subcomponent">
+                                    <strong>{{ sub.type }}</strong> (Confianza: {{ "%.2f"|format(sub.confidence*100) }}%)<br>
+                                    Coordenadas: [{{ sub.coordinates|join(', ') }}]
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p><em>No se detectaron subcomponentes</em></p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="result-section">
+            <h2>Datos JSON</h2>
+            <p>
+                <a href="{{ json_file }}" class="btn btn-sm btn-outline-secondary" target="_blank">Descargar JSON</a>
+            </p>
+            <pre>{{ report|tojson(indent=2) }}</pre>
+        </div>
+
+        <div class="footer">
+            <p>Detector de Widgets Flutter &copy; 2025</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

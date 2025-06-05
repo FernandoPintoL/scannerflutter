@@ -1,0 +1,19 @@
+# Web framework and utilities
+flask==2.3.3
+Werkzeug==2.3.7
+
+# Environment variables
+python-dotenv==1.0.0
+
+# Computer vision - Only one OpenCV package should be installed
+opencv-python==4.8.1.78
+
+# Computer vision tools
+supervision==0.25.1
+
+# Roboflow API client
+roboflow==1.1.9
+
+# WSGI HTTP server (for production)
+# Note: Not needed for local development, and may not install on Windows
+gunicorn==21.2.0
