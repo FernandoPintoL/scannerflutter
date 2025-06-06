@@ -8,7 +8,7 @@ python-dotenv>=1.0.0
 # Computer vision - Only one OpenCV package should be installed
 supervision==0.25.1 # Computer vision tools
 opencv-python==4.10.0.84  # Commented out to avoid conflicts with opencv-python-headless
-opencv-python-headless==4.10.0.84 # Versión compatible con Roboflow y Ultralytics
+opencv-python-headless==4.8.1.78 # Versión compatible con Roboflow y Ultralytics
 
 # Roboflow API client
 roboflow==1.1.65
