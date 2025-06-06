@@ -4,7 +4,7 @@ Esta guía te ayudará a instalar correctamente las dependencias del proyecto y 
 
 ## Requisitos Previos
 
-- Python 3.7+ instalado
+- Python 3.7+ instalado (compatible con Python 3.12.0)
 - pip (gestor de paquetes de Python)
 - Git (opcional, para clonar el repositorio)
 
@@ -46,14 +46,14 @@ Esta guía te ayudará a instalar correctamente las dependencias del proyecto y 
 
 ```
 pip uninstall -y opencv-python opencv-python-headless
-pip install opencv-python==4.8.0.76
+pip install opencv-python>=4.8.1.78
 ```
 
 Para entornos sin interfaz gráfica (servidores), usa opencv-python-headless:
 
 ```
 pip uninstall -y opencv-python opencv-python-headless
-pip install opencv-python-headless==4.8.0.76
+pip install opencv-python-headless>=4.8.1.78
 ```
 
 ### Problema: Error al instalar supervision
@@ -68,7 +68,7 @@ pip install opencv-python-headless==4.8.0.76
 
 2. Luego intenta instalar supervision nuevamente:
    ```
-   pip install supervision==0.16.0
+   pip install supervision>=0.25.1
    ```
 
 ### Problema: Error al instalar gunicorn en Windows
@@ -91,6 +91,26 @@ Para producción en un servidor Linux, puedes usar gunicorn normalmente.
 
 ```
 pip install -r requirements_fixed.txt --no-cache-dir
+```
+
+### Problema: Dependencias adicionales para el paquete de inferencia
+
+**Síntoma**: Errores al ejecutar el paquete de inferencia relacionados con numpy o pillow.
+
+**Solución**: Instala las dependencias adicionales requeridas por el paquete de inferencia:
+
+```
+pip install numpy>=1.26.4 pillow>=10.0.0,<11.0.0
+```
+
+### Problema: Error al instalar NumPy con Python 3.12.0
+
+**Síntoma**: Error durante la instalación de NumPy, especialmente con versiones incompatibles, mostrando errores de compilación o instalación.
+
+**Solución**: Utiliza específicamente NumPy 1.26.4 que es compatible con Python 3.12.0:
+
+```
+pip install numpy>=1.26.4
 ```
 
 ## Verificación de la Instalación

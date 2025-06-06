@@ -45,7 +45,14 @@
                 <h4 class="alert-heading">⚠️ Modelo no disponible</h4>
                 <p>No se pudo cargar el modelo de detección (ID: {{ model_id }}). La funcionalidad de escaneo no estará disponible.</p>
                 <hr>
-                <p class="mb-0">Por favor, verifica la configuración de la API key y el model_id en el archivo .env y app.py.</p>
+                <p><strong>Posibles soluciones:</strong></p>
+                <ol>
+                    <li>Verifica que la API key en el archivo <code>.env</code> sea correcta</li>
+                    <li>Asegúrate de tener acceso al modelo especificado en Roboflow</li>
+                    <li>Modifica el MODEL_ID en <code>app.py</code> si es necesario</li>
+                    <li>Ejecuta <code>python test_api_key.py</code> para verificar la API key y obtener sugerencias de model_id</li>
+                </ol>
+                <p class="mb-0">Si necesitas más ayuda, consulta la documentación o contacta al soporte técnico.</p>
             </div>
             {% endif %}
         </div>
@@ -94,6 +101,7 @@
   "model_status": "not_loaded",
   "model_id": "{{ model_id }}"
 }</code></pre>
+                <p class="mt-2 mb-0">Para resolver este problema, sigue las instrucciones en la parte superior de esta página.</p>
             </div>
             {% endif %}
         </div>

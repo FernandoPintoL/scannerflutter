@@ -156,7 +156,9 @@ Para encontrar un modelo válido:
    MODEL_ID = "workspace/project/version"
    ```
 
-### Usar el script de prueba
+### Usar los scripts de prueba
+
+#### Verificar API key y workspaces disponibles
 
 Puedes usar el script `test_api_key.py` para verificar qué workspaces están disponibles con tu API key:
 
@@ -165,6 +167,16 @@ python test_api_key.py
 ```
 
 Este script intentará acceder a varios workspaces comunes y te mostrará cuáles son accesibles.
+
+#### Probar diferentes versiones de modelos
+
+Si conoces el nombre de un workspace pero no estás seguro de qué versiones están disponibles, puedes usar el script `test_widgets_model.py`:
+
+```
+python test_widgets_model.py
+```
+
+Este script probará diferentes versiones de modelos en varios workspaces para encontrar una combinación válida que puedas usar en la aplicación.
 
 ### Crear tu propio modelo en Roboflow
 

@@ -11,6 +11,7 @@ MODEL_ID = "ui_component_flutter/5"
 
 try:
     print(f"Intentando cargar el modelo con ID: {MODEL_ID}")
+    print(ROBOFLOW_API_KEY)
     model = get_model(model_id=MODEL_ID, api_key=ROBOFLOW_API_KEY)
     print("¡Modelo cargado exitosamente!")
 except Exception as e:

@@ -10,7 +10,7 @@ load_dotenv()
 
 # Configuración
 ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY")
-MODEL_ID = "ui_component_flutter/5"  # Cambiado de "ui_component_flutter/5" a un workspace válido, con versión 1 en lugar de 5
+MODEL_ID = "ui_component_flutter/5"  # Nuevo model_id que funciona correctamente según test_api_key.py
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output_results'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
@@ -33,9 +33,15 @@ try:
         output_dir=OUTPUT_FOLDER
     )
     MODEL_LOADED = True
+    print(f"✅ Modelo cargado exitosamente: {MODEL_ID}")
 except Exception as e:
     print(f"⚠️ Error al cargar el modelo: {str(e)}")
     print("La aplicación se ejecutará en modo limitado. No se podrán escanear imágenes.")
+    print("\nPosibles soluciones:")
+    print("1. Verifica que la API key en el archivo .env sea correcta")
+    print("2. Asegúrate de tener acceso al modelo especificado en Roboflow")
+    print("3. Modifica el MODEL_ID en app.py si es necesario")
+    print("4. Ejecuta test_api_key.py para verificar la API key y obtener sugerencias de model_id")
     MODEL_LOADED = False
 
 def allowed_file(filename):

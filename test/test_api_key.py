@@ -17,14 +17,14 @@ print(f"API Key: {ROBOFLOW_API_KEY[:5]}...{ROBOFLOW_API_KEY[-5:]}")
 
 # Lista de posibles workspaces para probar
 test_workspaces = [
-    "ui_component_flutter",  # El workspace actual que está fallando
-    "flutter-ui",
-    "flutter-widgets",
-    "ui-components",
-    "flutter",
-    "ui",
-    "components",
-    "widgets",
+    "janild/ui_component_flutter/5",  # El workspace actual que está fallando
+    "janild/flutter-ui/5",
+    "janild/flutter-widgets/5",
+    "janild/ui-components/5",
+    "janild/flutter/5",
+    "janild/ui/5",
+    "janild/components/5",
+    "janild/widgets/5",
     "default"  # Muchas APIs tienen un workspace por defecto
 ]
 

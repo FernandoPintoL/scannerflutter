@@ -2,6 +2,9 @@ import supervision as sv
 import cv2
 import os
 import json
+import re
+import easyocr
+import numpy as np
 from datetime import datetime
 from inference import get_model
 
@@ -17,6 +20,9 @@ class WidgetScanner:
         "Text": [],
     }
 
+    # Componentes que requieren OCR
+    OCR_COMPONENTS = ["Text", "texfield_hinttext", "texfield_label", "button_text"]
+
     def __init__(self, model_id, api_key, output_dir="output_results"):
         """
         Inicializa el escáner de widgets.
@@ -30,6 +36,9 @@ class WidgetScanner:
         self.api_key = api_key
         self.output_dir = output_dir
         self.model = get_model(model_id=model_id, api_key=api_key)
+
+        # Inicializar EasyOCR (es costoso inicializarlo)
+        self.reader = easyocr.Reader(['es', 'en'])  # Español e inglés
 
         # Crear directorio de salida si no existe
         os.makedirs(output_dir, exist_ok=True)
@@ -56,6 +65,60 @@ class WidgetScanner:
 
         # Comportamiento por defecto
         return (sx1 >= cx1) and (sy1 >= cy1) and (sx2 <= cx2) and (sy2 <= cy2)
+
+    def extract_ui_text(self, image, bbox, component_type):
+        """
+        Extracción de texto con ajuste fino para caracteres similares.
+
+        Args:
+            image (numpy.ndarray): Imagen de la que extraer el texto
+            bbox (list): Coordenadas del componente [x1, y1, x2, y2]
+            component_type (str): Tipo del componente
+
+        Returns:
+            str: Texto extraído del componente
+        """
+        try:
+            x1, y1, x2, y2 = map(int, bbox)
+            roi = image[y1:y2, x1:x2]
+
+            # 1. Preprocesamiento ligero pero efectivo
+            gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+            _, processed = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY_INV)
+
+            # 2. Configuración hiper-específica para tu caso
+            ocr_config = {
+                'detail': 0,
+                'text_threshold': 0.65,
+                'width_ths': 1.2,
+                'allowlist': 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZáéíóúÁÉÍÓÚñÑ:',
+                'min_size': 20,  # Filtrar ruido pequeño
+                'slope_ths': 0.1  # Para texto bien horizontal
+            }
+
+            # 3. Ejecución con post-procesamiento inteligente
+            results = self.reader.readtext(processed, **ocr_config)
+            raw_text = " ".join([result[1] for result in results]).strip()
+
+            # 4. Correcciones basadas en patrones visuales
+            correction_rules = {
+                r'Invler\b': 'Invitar',
+                r'Coveo:': 'Correo:',
+                r'Correc\b': 'Correo',
+                r'logi\b': 'login',
+                r'Ewe\b': 'email:',
+                r'Gilesk\b': 'gloogle',
+                r'FacsbcaK\b': 'facebook',
+            }
+
+            for pattern, correction in correction_rules.items():
+                raw_text = re.sub(pattern, correction, raw_text)
+
+            return raw_text if raw_text else ""
+
+        except Exception as e:
+            print(f"⚠️ Error mínimo: {str(e)}")
+            return ""
 
     def scan_image(self, image_path):
         """
@@ -124,11 +187,21 @@ class WidgetScanner:
                             c_type,
                             s_type
                         ):
-                            component["subcomponents"].append({
+                            subcomponent_data = {
                                 "type": s_type,
                                 "coordinates": list(map(int, s_bbox)),
                                 "confidence": float(s_conf)
-                            })
+                            }
+
+                            # Extraer texto si es un componente que requiere OCR
+                            if s_type in self.OCR_COMPONENTS:
+                                subcomponent_data["text"] = self.extract_ui_text(image, s_bbox, s_type)
+
+                            component["subcomponents"].append(subcomponent_data)
+
+                # Extraer texto para componentes principales que requieren OCR
+                if c_type in self.OCR_COMPONENTS:
+                    component["text"] = self.extract_ui_text(image, c_bbox, c_type)
 
                 report["components"].append(component)
 
