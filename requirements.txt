@@ -1,32 +1,33 @@
 # Web framework and utilities
-flask>=2.3.3
-Werkzeug>=2.3.7
+flask==2.3.3
+Werkzeug==2.3.7
 
 # Environment variables
 python-dotenv>=1.0.0
 
 # Computer vision - Only one OpenCV package should be installed
-# opencv-python>=4.8.1.78  # Commented out to avoid conflicts with opencv-python-headless
-
-# Computer vision tools
-supervision>=0.25.1
+supervision==0.25.1 # Computer vision tools
+opencv-python==4.8.1.78  # Commented out to avoid conflicts with opencv-python-headless
+opencv-python-headless==4.8.1.78 # Versión compatible con Roboflow y Ultralytics
 
 # Roboflow API client
-roboflow>=1.1.9
+roboflow==1.1.65
 
 # WSGI HTTP server (for production)
 # Note: Not needed for local development, and may not install on Windows
-gunicorn>=21.2.0
+gunicorn==21.2.0
 
 # OCR for text extraction
-easyocr>=1.7.2
+easyocr==1.7.2
+torch==2.2.2 # Evita que EasyOCR installe una versión incompatible
 
 #inference
-inference>=0.50.3
-
-opencv-python-headless==4.10.0.84
+inference==0.50.3
+ultralytics==8.2.7 # Necesario para inference
 
 # Additional dependencies required by the inference package
 # Using numpy 1.26.4 for compatibility with Python 3.12.0
-numpy>=1.26.4
-pillow>=10.0.0,<11.0.0
+numpy==1.26.4
+pillow==10.2.0
+
+protobuf==3.20.3 # Required by inference package
