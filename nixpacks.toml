@@ -1,11 +1,9 @@
 #nixpacks.toml
 [phases.setup]
-nixPkgs = ["python312", "python312Packages.pip", "gcc"]
+nixPkgs = ["python310", "python310Packages.pip", "gcc", "ffmpeg", "cudatoolkit"]
 
 [phases.install]
 cmds = [
-    "python -m ensurepip --upgrade",
-    "python -m pip install --upgrade pip",
     "pip install -r requirements.txt"
 ]
 
