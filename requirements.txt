@@ -24,7 +24,7 @@ easyocr>=1.7.2
 #inference
 inference>=0.50.3
 
-opencv-python-headless>=4.10.0.84
+opencv-python-headless==4.8.0.74
 
 # Additional dependencies required by the inference package
 # Using numpy 1.26.4 for compatibility with Python 3.12.0
