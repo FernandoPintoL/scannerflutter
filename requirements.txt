@@ -1,3 +1,4 @@
+python_version==3.12.0
 # Web framework and utilities
 flask==3.1.1
 Werkzeug==3.1.3
@@ -19,15 +20,15 @@ gunicorn==21.2.0
 
 # OCR for text extraction
 easyocr==1.7.2
-torch==2.2.2 # Evita que EasyOCR installe una versión incompatible
+torch==2.6.0 # Evita que EasyOCR installe una versión incompatible
 
 #inference
 inference==0.50.3
-ultralytics==8.2.7 # Necesario para inference
+ultralytics==8.3.40 # Necesario para inference
 
 # Additional dependencies required by the inference package
 # Using numpy 1.26.4 for compatibility with Python 3.12.0
-numpy==1.26.4
-pillow==10.2.0
+numpy==2.2.6
+pillow==11.2.1
 
-protobuf==3.20.3 # Required by inference package
+protobuf==6.31.1 # Required by inference package
