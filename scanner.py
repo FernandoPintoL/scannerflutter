@@ -43,28 +43,52 @@ class WidgetScanner:
         # Crear directorio de salida si no existe
         os.makedirs(output_dir, exist_ok=True)
 
-    def is_related(self, component_bbox, sub_bbox, component_type, subcomponent_type):
+    def is_related(self, parent_bbox, child_bbox, parent_type, child_type):
         """
         Verifica la relación espacial según el tipo de componentes.
 
         Args:
-            component_bbox (list): Coordenadas del componente principal [x1, y1, x2, y2]
-            sub_bbox (list): Coordenadas del subcomponente [x1, y1, x2, y2]
-            component_type (str): Tipo del componente principal
-            subcomponent_type (str): Tipo del subcomponente
+            parent_bbox (list): Coordenadas del componente principal [x1, y1, x2, y2]
+            child_bbox (list): Coordenadas del subcomponente [x1, y1, x2, y2]
+            parent_type (str): Tipo del componente principal
+            child_type (str): Tipo del subcomponente
 
         Returns:
             bool: True si están relacionados, False en caso contrario
         """
-        cx1, cy1, cx2, cy2 = component_bbox
-        sx1, sy1, sx2, sy2 = sub_bbox
+        px1, py1, px2, py2 = parent_bbox
+        cx1, cy1, cx2, cy2 = child_bbox
 
-        # Caso especial: textfield_label encima del TextField
-        if component_type == "TextField" and subcomponent_type == "texfield_label":
-            return (sy2 < cy1) and (abs((sx1+sx2)/2 - (cx1+cx2)/2)) < (cx2-cx1)/2
+        # 1. Para button_text: relación directa sin verificación espacial
+        if parent_type == "button" and child_type == "button_text":
+            return (
+                (cx1 >= px1) and  # Completamente dentro del botón
+                (cx2 <= px2) and
+                (cy1 >= py1) and
+                (cy2 <= py2)
+            )  # Confiamos completamente en la detección del modelo
 
-        # Comportamiento por defecto
-        return (sx1 >= cx1) and (sy1 >= cy1) and (sx2 <= cx2) and (sy2 <= cy2)
+        # 2. Para texfield_label (reglas espaciales estrictas)
+        elif parent_type == "TextField" and child_type == "texfield_label":
+            vertical_gap = py1 - cy2  # Distancia vertical entre label y TextField
+            horizontal_overlap = (min(cx2, px2) - max(cx1, px1)) / (cx2 - cx1)  # % de superposición
+
+            return (
+                (0 <= vertical_gap <= 30) and  # Máximo 30px de separación
+                (horizontal_overlap >= 0.7)    # Mínimo 70% de alineación
+            )
+
+        # 3. Para texfield_hinttext (dentro del TextField con tolerancia)
+        elif parent_type == "TextField" and child_type == "texfield_hinttext":
+            return (
+                (cx1 >= px1 - 10) and  # Margen izquierdo
+                (cx2 <= px2 + 10) and  # Margen derecho
+                (cy1 >= py1 - 5) and   # Margen superior
+                (cy2 <= py2 + 5)       # Margen inferior
+            )
+
+        # 4. Para cualquier otro caso
+        return False
 
     def extract_ui_text(self, image, bbox, component_type):
         """
@@ -91,7 +115,7 @@ class WidgetScanner:
                 'detail': 0,
                 'text_threshold': 0.65,
                 'width_ths': 1.2,
-                'allowlist': 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZáéíóúÁÉÍÓÚñÑ:',
+                'allowlist': 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZáéíóúÁÉÍÓÚñÑ:´@#.,0123456789',
                 'min_size': 20,  # Filtrar ruido pequeño
                 'slope_ths': 0.1  # Para texto bien horizontal
             }
@@ -106,9 +130,41 @@ class WidgetScanner:
                 r'Coveo:': 'Correo:',
                 r'Correc\b': 'Correo',
                 r'logi\b': 'login',
-                r'Ewe\b': 'email:',
-                r'Gilesk\b': 'gloogle',
-                r'FacsbcaK\b': 'facebook',
+                r'logi4\b': 'login',
+                r'lo9M\b': 'login',
+                r'Ewe\b': 'Email:',
+                r'Gilesk\b': 'Gloogle',
+                r'FacsbcaK\b': 'Facebook',
+                r'Botlov\b': 'Button',
+                r'Butho\b': 'Button',
+                r'JltField\b': 'TextField:',
+                r'TextFiel:': 'TextField:',
+                r'Trlulo\b': 'Título',
+                r'3utho\b': 'Button',
+                r'Jugrcsar\b': 'Ingresar',
+                r'Usveno\b': 'Usuario:',
+                r'Conbaseua:': 'Contraseña:',
+                r'Valuc': 'Volver',
+                r'Vulver\b': 'Volver',
+                r'51hoWeb:': 'Sitio Web:',
+                r'Gjoerder\b': 'Guardar',
+                r'B.o:': 'Bio:',
+                r'Ncmibic:': 'Nombre:',
+                r'Ed:lar\b': 'Editar',
+                r'Edtar\b': 'Editar',
+                r'Busqidte\b': 'Búsqueda',
+                r'Duscer\b': 'Buscar',
+                r'FecaJuicie': 'Fecha Inicial:',
+                r'KelaSraClaue:': 'Palabra Clave:', # Ajuste especial para este caso
+                r'TechaZiual:': 'Fecha Final:', # Ajuste especial para este caso
+                r'Quakescúa Reapercz\b': 'Recuperar Contraseña',
+                r'Z,ercou': 'Dirección:',
+                r'Diracoa:.': 'Dirección:',
+                r'Goasdar\b': 'Guardar',
+                r'Nambr': 'Nombre',
+                r'How': 'Nombre:',
+                r'Elad': 'Edad',
+                r'Ldad': 'Edad:',
             }
 
             for pattern, correction in correction_rules.items():

@@ -13,7 +13,7 @@ load_dotenv()
 
 # Configuración
 ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY")
-image_file = "imagen1.png"
+image_file = "img10.png"
 model_id = "ui_component_flutter/5"
 output_dir = "output_results"
 os.makedirs(output_dir, exist_ok=True)
@@ -31,17 +31,42 @@ COMPONENT_HIERARCHY = {
 # Componentes que requieren OCR
 OCR_COMPONENTS = ["Text", "texfield_hinttext", "texfield_label", "button_text"]
 
-def is_related(component_bbox, sub_bbox, component_type, subcomponent_type):
-    """Verifica la relación espacial según el tipo de componentes"""
-    cx1, cy1, cx2, cy2 = component_bbox
-    sx1, sy1, sx2, sy2 = sub_bbox
+def is_related(parent_bbox, child_bbox, parent_type, child_type):
+    """Función corregida con indentación adecuada y lógica optimizada"""
+    px1, py1, px2, py2 = parent_bbox
+    cx1, cy1, cx2, cy2 = child_bbox
+
+    # 1. Para button_text: relación directa sin verificación espacial
+    if parent_type == "button" and child_type == "button_text":
+        return (
+            (cx1 >= px1) and  # Completamente dentro del botón
+            (cx2 <= px2) and
+            (cy1 >= py1) and
+            (cy2 <= py2)
+        )  # Confiamos completamente en la detección del modelo
+
+    # 2. Para texfield_label (reglas espaciales estrictas)
+    elif parent_type == "TextField" and child_type == "texfield_label":
+        vertical_gap = py1 - cy2  # Distancia vertical entre label y TextField
+        horizontal_overlap = (min(cx2, px2) - max(cx1, px1)) / (cx2 - cx1)  # % de superposición
+        
+        return (
+            (0 <= vertical_gap <= 30) and  # Máximo 30px de separación
+            (horizontal_overlap >= 0.7)    # Mínimo 70% de alineación
+        )
     
-    # Caso especial: textfield_label encima del TextField
-    if component_type == "TextField" and subcomponent_type == "texfield_label":
-        return (sy2 < cy1) and (abs((sx1+sx2)/2 - (cx1+cx2)/2)) < (cx2-cx1)/2
+    # 3. Para texfield_hinttext (dentro del TextField con tolerancia)
+    elif parent_type == "TextField" and child_type == "texfield_hinttext":
+        return (
+            (cx1 >= px1 - 10) and  # Margen izquierdo
+            (cx2 <= px2 + 10) and  # Margen derecho
+            (cy1 >= py1 - 5) and   # Margen superior
+            (cy2 <= py2 + 5)       # Margen inferior
+        )
     
-    # Comportamiento por defecto
-    return (sx1 >= cx1) and (sy1 >= cy1) and (sx2 <= cx2) and (sy2 <= cy2)
+    # 4. Para cualquier otro caso
+    return False
+
 
 def extract_ui_text(image, bbox, component_type):
     """Extracción de texto con ajuste fino para caracteres similares"""
@@ -58,7 +83,7 @@ def extract_ui_text(image, bbox, component_type):
             'detail': 0,
             'text_threshold': 0.65,
             'width_ths': 1.2,
-            'allowlist': 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZáéíóúÁÉÍÓÚñÑ:',
+            'allowlist': 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZáéíóúÁÉÍÓÚñÑ:´@#.,0123456789',
             'min_size': 20,  # Filtrar ruido pequeño
             'slope_ths': 0.1  # Para texto bien horizontal
         }
@@ -73,9 +98,42 @@ def extract_ui_text(image, bbox, component_type):
             r'Coveo:': 'Correo:',
             r'Correc\b': 'Correo',
             r'logi\b': 'login',
-            r'Ewe\b': 'email:',
-            r'Gilesk\b': 'gloogle',
-            r'FacsbcaK\b': 'facebook',
+            r'logi4\b': 'login',
+            r'lo9M\b': 'login',
+            r'Ewe\b': 'Email:',
+            r'Gilesk\b': 'Gloogle',
+            r'FacsbcaK\b': 'Facebook',
+            r'Botlov\b': 'Button',
+            r'Butho\b': 'Button',
+            r'JltField\b': 'TextField:',
+            r'TextFiel:': 'TextField:',
+            r'Trlulo\b': 'Título',
+            r'3utho\b': 'Button',
+            r'Jugrcsar\b': 'Ingresar',
+            r'Usveno\b': 'Usuario:',
+            r'Conbaseua:': 'Contraseña:',
+            r'Valuc': 'Volver',
+            r'Vulver\b': 'Volver',
+            r'51hoWeb:': 'Sitio Web:',
+            r'Gjoerder\b': 'Guardar',
+            r'B.o:': 'Bio:',
+            r'Ncmibic:': 'Nombre:',
+            r'Ed:lar\b': 'Editar',
+            r'Edtar\b': 'Editar',
+            r'Busqidte\b': 'Búsqueda',
+            r'Duscer\b': 'Buscar',
+            r'FecaJuicie': 'Fecha Inicial:',
+            r'KelaSraClaue:': 'Palabra Clave:', # Ajuste especial para este caso
+            r'TechaZiual:': 'Fecha Final:', # Ajuste especial para este caso
+            r'Quakescúa Reapercz\b': 'Recuperar Contraseña',
+            r'Z,ercou': 'Dirección:',
+            r'Diracoa:.': 'Dirección:',
+            r'Goasdar\b': 'Guardar',
+            r'Nambr': 'Nombre',
+            r'How': 'Nombre:',
+            r'Elad': 'Edad',
+            r'Ldad': 'Edad:',
+             
         
         }
         
@@ -110,6 +168,13 @@ try:
         },
         "components": []
     }
+    
+    # Mapeo de nombres para el JSON
+    NAME_MAPPING = {
+        "texfield_label": "label",
+        "texfield_hinttext": "hint",
+        "button_text": "text"
+    }
 
     # Procesar componentes principales
     main_detections = [
@@ -132,7 +197,12 @@ try:
     for c_bbox, c_conf, c_id, c_type in main_detections:
         component = {
             "type": c_type,
-            "coordinates": list(map(int, c_bbox)),
+            "coordinates": {
+                "x1": int(c_bbox[0]),
+                "y1": int(c_bbox[1]),
+                "x2": int(c_bbox[2]),
+                "y2": int(c_bbox[3])
+            },#list(map(int, c_bbox)),
             "confidence": float(c_conf),
             "subcomponents": []
         }
@@ -141,23 +211,36 @@ try:
         for s_bbox, s_conf, s_id, s_type in sub_detections:
             if s_type in COMPONENT_HIERARCHY.get(c_type, []):
                 if is_related(
-                    list(map(int, c_bbox)),
-                    list(map(int, s_bbox)),
+                    [int(x) for x in c_bbox],
+                    [int(x) for x in s_bbox],
                     c_type,
                     s_type
                 ):
+
+                    # Aplicar mapeo de nombres para el JSON
+                    json_type = NAME_MAPPING.get(s_type, s_type)
+
                     subcomponent_data = {
-                        "type": s_type,
-                        "coordinates": list(map(int, s_bbox)),
+                        "type": json_type,
+                        "coordinates": {
+                            "x1": int(s_bbox[0]),
+                            "y1": int(s_bbox[1]),
+                            "x2": int(s_bbox[2]),
+                            "y2": int(s_bbox[3])
+                        },#list(map(int, s_bbox)),
                         "confidence": float(s_conf)
                     }
                     
                     # Extraer texto si es un componente que requiere OCR
                     if s_type in OCR_COMPONENTS:
                         subcomponent_data["text"] = extract_ui_text(image, s_bbox, s_type)
-                    
                     component["subcomponents"].append(subcomponent_data)
-        
+
+
+        #report["components"].append(component)
+
+
+
         # Extraer texto para componentes principales que requieren OCR
         if c_type in OCR_COMPONENTS:
             component["text"] = extract_ui_text(image, c_bbox, c_type)
@@ -167,8 +250,8 @@ try:
     # 4. Guardar JSON
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     json_filename = os.path.join(output_dir, f"{image_file}.json")
-    with open(json_filename, 'w') as f:
-        json.dump(report, f, indent=2)
+    with open(json_filename, 'w', encoding='utf-8') as f:
+        json.dump(report, f, indent=2, ensure_ascii=False)
 
     # 5. Visualización (opcional)
     box_annotator = sv.BoxAnnotator(thickness=2, color=sv.Color(r=0, g=255, b=0))
