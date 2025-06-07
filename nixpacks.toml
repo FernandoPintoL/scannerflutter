@@ -1,6 +1,6 @@
 #nixpacks.toml
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip", "gcc", "ffmpeg", "cudatoolkit", "mesa", "libGL"]
+nixPkgs = ["python311", "python311Packages.pip", "gcc", "ffmpeg", "cudatoolkit", "mesa" ,"mesa.drivers", "libGL", "libGLU"]
 
 [start]
 cmd="gunicorn app:app"
