@@ -13,7 +13,7 @@ load_dotenv()
 
 # Configuración
 ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY")
-image_file = "img10.png"
+image_file = "imagen1.jpg"
 model_id = "ui_component_flutter/5"
 output_dir = "output_results"
 os.makedirs(output_dir, exist_ok=True)
@@ -133,8 +133,6 @@ def extract_ui_text(image, bbox, component_type):
             r'How': 'Nombre:',
             r'Elad': 'Edad',
             r'Ldad': 'Edad:',
-             
-        
         }
         
         for pattern, correction in correction_rules.items():

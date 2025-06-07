@@ -208,6 +208,13 @@ class WidgetScanner:
                 "components": []
             }
 
+            # Mapeo de nombres para el JSON
+            NAME_MAPPING = {
+                "texfield_label": "label",
+                "texfield_hinttext": "hint",
+                "button_text": "text"
+            }
+
             # Procesar componentes principales
             main_detections = [
                 (bbox, conf, class_id, class_name) 
@@ -229,7 +236,12 @@ class WidgetScanner:
             for c_bbox, c_conf, c_id, c_type in main_detections:
                 component = {
                     "type": c_type,
-                    "coordinates": list(map(int, c_bbox)),
+                    "coordinates": {
+                        "x1": int(c_bbox[0]),
+                        "y1": int(c_bbox[1]),
+                        "x2": int(c_bbox[2]),
+                        "y2": int(c_bbox[3])
+                    },#list(map(int, c_bbox)),
                     "confidence": float(c_conf),
                     "subcomponents": []
                 }
@@ -243,16 +255,22 @@ class WidgetScanner:
                             c_type,
                             s_type
                         ):
+                            # Aplicar mapeo de nombres para el JSON
+                            json_type = NAME_MAPPING.get(s_type, s_type)
                             subcomponent_data = {
-                                "type": s_type,
-                                "coordinates": list(map(int, s_bbox)),
+                                "type": json_type,
+                                "coordinates": {
+                                    "x1": int(s_bbox[0]),
+                                    "y1": int(s_bbox[1]),
+                                    "x2": int(s_bbox[2]),
+                                    "y2": int(s_bbox[3])
+                                },#list(map(int, s_bbox)),
                                 "confidence": float(s_conf)
                             }
 
                             # Extraer texto si es un componente que requiere OCR
                             if s_type in self.OCR_COMPONENTS:
                                 subcomponent_data["text"] = self.extract_ui_text(image, s_bbox, s_type)
-
                             component["subcomponents"].append(subcomponent_data)
 
                 # Extraer texto para componentes principales que requieren OCR
@@ -264,8 +282,8 @@ class WidgetScanner:
             # 4. Guardar JSON
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             json_filename = os.path.join(self.output_dir, f"ui_analysis_{timestamp}.json")
-            with open(json_filename, 'w') as f:
-                json.dump(report, f, indent=2)
+            with open(json_filename, 'w', encoding='utf-8') as f:
+                json.dump(report, f, indent=2, ensure_ascii=False)
 
             # 5. Visualización
             box_annotator = sv.BoxAnnotator(thickness=2, color=sv.Color(r=0, g=255, b=0))
