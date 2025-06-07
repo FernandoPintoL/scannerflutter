@@ -1,6 +1,38 @@
 #nixpacks.toml
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip", "gcc", "ffmpeg", "cudatoolkit", "mesa" ,"mesa.drivers", "libGL", "libGLU"]
+nixPkgs = [
+    "python311",
+    "python311Packages.pip",
+    "gcc",
+    "ffmpeg",
+    "cudatoolkit",
+    "mesa" ,
+    "mesa.drivers",
+    "libGL",
+    "libGLU",
+    "xorg.libX11",
+    "xorg.libXrender",
+    "xorg.libXext",
+    "xorg.libX11",
+    "xorg.libXext",
+    "xorg.libXrender",
+    "xorg.libXfixes",
+    "xorg.libXi",
+    "xorg.libXdmcp",
+    "libglvnd",
+    "glib",
+    "pkg-config",
+    "zlib",
+    "stdenv.cc.cc.lib"
+]
+
+[phases.install]
+cmds = [
+    "python -m venv /opt/venv && . /opt/venv/bin/activate",
+    "pip install --upgrade pip",
+    "pip install wheel setuptools",
+    "pip install -r requirements.txt"
+]
 
 [start]
 cmd="gunicorn app:app"
