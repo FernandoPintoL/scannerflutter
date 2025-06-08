@@ -56,16 +56,19 @@ class WidgetScanner:
         Returns:
             bool: True si están relacionados, False en caso contrario
         """
+
+        print(f"Llamada a is_related: {parent_type} ({parent_bbox}) <-> {child_type} ({child_bbox})")
+
         px1, py1, px2, py2 = parent_bbox
         cx1, cy1, cx2, cy2 = child_bbox
 
         # 1. Para button_text: relación directa sin verificación espacial
         if parent_type == "button" and child_type == "button_text":
             return (
-                (cx1 >= px1) and  # Completamente dentro del botón
-                (cx2 <= px2) and
-                (cy1 >= py1) and
-                (cy2 <= py2)
+                    (cx1 >= px1) and  # Completamente dentro del botón
+                    (cx2 <= px2) and
+                    (cy1 >= py1) and
+                    (cy2 <= py2)
             )  # Confiamos completamente en la detección del modelo
 
         # 2. Para texfield_label (reglas espaciales estrictas)
@@ -74,17 +77,17 @@ class WidgetScanner:
             horizontal_overlap = (min(cx2, px2) - max(cx1, px1)) / (cx2 - cx1)  # % de superposición
 
             return (
-                (0 <= vertical_gap <= 30) and  # Máximo 30px de separación
-                (horizontal_overlap >= 0.7)    # Mínimo 70% de alineación
+                    (0 <= vertical_gap <= 30) and  # Máximo 30px de separación
+                    (horizontal_overlap >= 0.7)  # Mínimo 70% de alineación
             )
 
         # 3. Para texfield_hinttext (dentro del TextField con tolerancia)
         elif parent_type == "TextField" and child_type == "texfield_hinttext":
             return (
-                (cx1 >= px1 - 10) and  # Margen izquierdo
-                (cx2 <= px2 + 10) and  # Margen derecho
-                (cy1 >= py1 - 5) and   # Margen superior
-                (cy2 <= py2 + 5)       # Margen inferior
+                    (cx1 >= px1 - 10) and  # Margen izquierdo
+                    (cx2 <= px2 + 10) and  # Margen derecho
+                    (cy1 >= py1 - 5) and  # Margen superior
+                    (cy2 <= py2 + 5)  # Margen inferior
             )
 
         # 4. Para cualquier otro caso
@@ -102,6 +105,7 @@ class WidgetScanner:
         Returns:
             str: Texto extraído del componente
         """
+        print(f"Llamada a extract_ui_text: {component_type} ({bbox})")
         try:
             x1, y1, x2, y2 = map(int, bbox)
             roi = image[y1:y2, x1:x2]
@@ -122,7 +126,7 @@ class WidgetScanner:
 
             # 3. Ejecución con post-procesamiento inteligente
             results = self.reader.readtext(processed, **ocr_config)
-            raw_text = " ".join([result[1] for result in results]).strip()
+            raw_text = " ".join(results).strip()
 
             # 4. Correcciones basadas en patrones visuales
             correction_rules = {
@@ -132,7 +136,9 @@ class WidgetScanner:
                 r'logi\b': 'login',
                 r'logi4\b': 'login',
                 r'lo9M\b': 'login',
+                r'logvi\b': 'login',
                 r'Ewe\b': 'Email:',
+                r'Giloesk\b': 'Google',
                 r'Gilesk\b': 'Gloogle',
                 r'FacsbcaK\b': 'Facebook',
                 r'Botlov\b': 'Button',
@@ -155,8 +161,8 @@ class WidgetScanner:
                 r'Busqidte\b': 'Búsqueda',
                 r'Duscer\b': 'Buscar',
                 r'FecaJuicie': 'Fecha Inicial:',
-                r'KelaSraClaue:': 'Palabra Clave:', # Ajuste especial para este caso
-                r'TechaZiual:': 'Fecha Final:', # Ajuste especial para este caso
+                r'KelaSraClaue:': 'Palabra Clave:',  # Ajuste especial para este caso
+                r'TechaZiual:': 'Fecha Final:',  # Ajuste especial para este caso
                 r'Quakescúa Reapercz\b': 'Recuperar Contraseña',
                 r'Z,ercou': 'Dirección:',
                 r'Diracoa:.': 'Dirección:',
@@ -188,6 +194,7 @@ class WidgetScanner:
             str: Ruta del archivo JSON generado
             str: Ruta de la imagen anotada
         """
+
         try:
             # 1. Cargar imagen
             image = cv2.imread(image_path)
@@ -217,7 +224,7 @@ class WidgetScanner:
 
             # Procesar componentes principales
             main_detections = [
-                (bbox, conf, class_id, class_name) 
+                (bbox, conf, class_id, class_name)
                 for bbox, conf, class_id, class_name in zip(
                     detections.xyxy, detections.confidence,
                     detections.class_id, detections.data['class_name']
@@ -226,7 +233,7 @@ class WidgetScanner:
 
             # Procesar subcomponentes
             sub_detections = [
-                (bbox, conf, class_id, class_name) 
+                (bbox, conf, class_id, class_name)
                 for bbox, conf, class_id, class_name in zip(
                     detections.xyxy, detections.confidence,
                     detections.class_id, detections.data['class_name']
@@ -241,7 +248,7 @@ class WidgetScanner:
                         "y1": int(c_bbox[1]),
                         "x2": int(c_bbox[2]),
                         "y2": int(c_bbox[3])
-                    },#list(map(int, c_bbox)),
+                    },  # list(map(int, c_bbox)),
                     "confidence": float(c_conf),
                     "subcomponents": []
                 }
@@ -250,10 +257,10 @@ class WidgetScanner:
                 for s_bbox, s_conf, s_id, s_type in sub_detections:
                     if s_type in self.COMPONENT_HIERARCHY.get(c_type, []):
                         if self.is_related(
-                            list(map(int, c_bbox)),
-                            list(map(int, s_bbox)),
-                            c_type,
-                            s_type
+                                [int(x) for x in c_bbox],
+                                [int(x) for x in s_bbox],
+                                c_type,
+                                s_type
                         ):
                             # Aplicar mapeo de nombres para el JSON
                             json_type = NAME_MAPPING.get(s_type, s_type)
@@ -264,10 +271,9 @@ class WidgetScanner:
                                     "y1": int(s_bbox[1]),
                                     "x2": int(s_bbox[2]),
                                     "y2": int(s_bbox[3])
-                                },#list(map(int, s_bbox)),
+                                },  # list(map(int, s_bbox)),
                                 "confidence": float(s_conf)
                             }
-
                             # Extraer texto si es un componente que requiere OCR
                             if s_type in self.OCR_COMPONENTS:
                                 subcomponent_data["text"] = self.extract_ui_text(image, s_bbox, s_type)
@@ -290,8 +296,8 @@ class WidgetScanner:
             label_annotator = sv.LabelAnnotator(text_scale=0.7, text_color=sv.Color.BLACK)
 
             labels = [
-                f"{class_name} {confidence:.2f}" 
-                for class_name, confidence in 
+                f"{class_name} {confidence:.2f}"
+                for class_name, confidence in
                 zip(detections.data['class_name'], detections.confidence)
             ]
 
