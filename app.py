@@ -3,6 +3,7 @@ import json
 from flask import Flask, request, jsonify, render_template, send_from_directory, url_for
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from flask_cors import CORS
 from scanner import WidgetScanner
 
 # Cargar variables de entorno
@@ -10,7 +11,7 @@ load_dotenv()
 
 # Configuración
 ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY")
-MODEL_ID = "ui_component_flutter/5"  # Nuevo model_id que funciona correctamente según test_api_key.py
+MODEL_ID = "ui_component_flutter/13"  # Nuevo model_id que funciona correctamente según test_api_key.py
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output_results'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
@@ -24,6 +25,9 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+
+# Configurar CORS
+CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}}, supports_credentials=True)
 
 # Inicializar el escáner
 try:

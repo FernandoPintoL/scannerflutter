@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime
 from inference import get_model
 
+
 class WidgetScanner:
     """
     Clase para escanear y detectar widgets de Flutter en imágenes.
@@ -18,10 +19,15 @@ class WidgetScanner:
         "TextField": ["texfield_label", "texfield_hinttext"],
         "button": ["button_text"],
         "Text": [],
+        "AppBar": ["AppBar_icon", "AppBar_title"],
+        "checkbox": ["checkbox_text"],
+        "radio": ["radio_text"],
+        "Dropdown_menu": ["value_1", "value_2", "value_3", "value_4", "value_5", "value_6", "value_7"],
     }
 
     # Componentes que requieren OCR
-    OCR_COMPONENTS = ["Text", "texfield_hinttext", "texfield_label", "button_text"]
+    OCR_COMPONENTS = ["Text", "texfield_hinttext", "texfield_label", "button_text", "AppBar_title", "checkbox_text",
+                      "radio_text", "value_1", "value_2", "value_3", "value_4", "value_5", "value_6", "value_7"]
 
     def __init__(self, model_id, api_key, output_dir="output_results"):
         """
@@ -73,12 +79,9 @@ class WidgetScanner:
 
         # 2. Para texfield_label (reglas espaciales estrictas)
         elif parent_type == "TextField" and child_type == "texfield_label":
-            vertical_gap = py1 - cy2  # Distancia vertical entre label y TextField
-            horizontal_overlap = (min(cx2, px2) - max(cx1, px1)) / (cx2 - cx1)  # % de superposición
-
             return (
-                    (0 <= vertical_gap <= 30) and  # Máximo 30px de separación
-                    (horizontal_overlap >= 0.7)  # Mínimo 70% de alineación
+                    (abs((py1 + py2) / 2 - (cy1 + cy2) / 2) < 45) and
+                    (abs((px1 + px2) / 2 - (cx1 + cx2) / 2) < 150)
             )
 
         # 3. Para texfield_hinttext (dentro del TextField con tolerancia)
@@ -89,8 +92,36 @@ class WidgetScanner:
                     (cy1 >= py1 - 5) and  # Margen superior
                     (cy2 <= py2 + 5)  # Margen inferior
             )
+        # 4. Para AppBar
+        elif parent_type == "AppBar":
+            if child_type == "AppBar_title":
+                return (cx1 >= px1) and (cx2 <= px2) and (cy1 >= py1) and (cy2 <= py2)
+            elif child_type == "AppBar_icon":
+                return (cx2 <= px1 + (px2 - px1) * 0.3)
+                # Icono dentro del 30% izquierdo del AppBar
+        # 5. Para checkbox
+        elif parent_type == "checkbox" and child_type == "checkbox_text":
+            return (
+                    (cx1 >= px1) and
+                    (cx2 <= px2) and
+                    (cy1 >= py1) and
+                    (cy2 <= py2)
+            )
+        # 6. Para radio
+        elif parent_type == "radio" and child_type == "radio_text":
+            return (
+                    (cx1 >= px1) and
+                    (cx2 <= px2) and
+                    (cy1 >= py1) and
+                    (cy2 <= py2)
+            )
+        # 7. Para Dropdown_menu
+        elif parent_type == "Dropdown_menu":
+            if child_type.startswith("value_"):
 
-        # 4. Para cualquier otro caso
+                return ( cx1 >= px1) and (cx2 <= px2) and (cy1 >= py1)
+
+        # 8. Para cualquier otro caso
         return False
 
     def extract_ui_text(self, image, bbox, component_type):
@@ -130,47 +161,101 @@ class WidgetScanner:
 
             # 4. Correcciones basadas en patrones visuales
             correction_rules = {
-                r'Invler\b': 'Invitar',
-                r'Coveo:': 'Correo:',
-                r'Correc\b': 'Correo',
-                r'logi\b': 'login',
-                r'logi4\b': 'login',
-                r'lo9M\b': 'login',
-                r'logvi\b': 'login',
-                r'Ewe\b': 'Email:',
-                r'Giloesk\b': 'Google',
-                r'Gilesk\b': 'Gloogle',
-                r'FacsbcaK\b': 'Facebook',
-                r'Botlov\b': 'Button',
-                r'Butho\b': 'Button',
-                r'JltField\b': 'TextField:',
-                r'TextFiel:': 'TextField:',
-                r'Trlulo\b': 'Título',
+                r'Trtulo\b': 'Título',
+                r'TextFel\b': 'TextField',
+                r'IatField\b': 'TextField:',
                 r'3utho\b': 'Button',
-                r'Jugrcsar\b': 'Ingresar',
-                r'Usveno\b': 'Usuario:',
-                r'Conbaseua:': 'Contraseña:',
-                r'Valuc': 'Volver',
-                r'Vulver\b': 'Volver',
-                r'51hoWeb:': 'Sitio Web:',
-                r'Gjoerder\b': 'Guardar',
-                r'B.o:': 'Bio:',
-                r'Ncmibic:': 'Nombre:',
-                r'Ed:lar\b': 'Editar',
-                r'Edtar\b': 'Editar',
-                r'Busqidte\b': 'Búsqueda',
-                r'Duscer\b': 'Buscar',
-                r'FecaJuicie': 'Fecha Inicial:',
-                r'KelaSraClaue:': 'Palabra Clave:',  # Ajuste especial para este caso
-                r'TechaZiual:': 'Fecha Final:',  # Ajuste especial para este caso
-                r'Quakescúa Reapercz\b': 'Recuperar Contraseña',
-                r'Z,ercou': 'Dirección:',
-                r'Diracoa:.': 'Dirección:',
-                r'Goasdar\b': 'Guardar',
+                r'Botlov\b': 'Button',
+                r'Passwuord:': 'Password:',
+                r'Uscorio\b': 'Usuario:',
+                r'Espalcl\b': 'Español',
+                r'Jvsies\b': 'Ingles',
+                r'Chic\b': 'Chino',
+                r'ceaJ\b': 'Acepto',
+                r'Civdad\b': 'Ciudad',
+                r'SanfaGe\b': 'Santa Cruz',
+                r'LaPe:': 'La Paz',
+                r'Crcha\b': 'Cocha',
+                r'Apailndo:': 'Apellido:',
+                r'Nomke:': 'Nombre:',
+                r'logv4\b': 'Login',
+                r'Jusscaar\b': 'Ingresar',
+                r'Usveno': 'Usuario:',
+                r'Conbasea:': 'Contraseña:',
+                r'5i': 'Si',
+                r'Mo': 'No',
+                r'Cvestionario\b': 'Cuestionario',
+                r'Oczoacen2': 'Ocupación:',
+                r'2 Trabeja\b': 'Trabaja?',
+                r'T\u00edtulo': 'Titulo?',
+                r'Csluda2\b': 'Estudia?',
+                r'Edad': 'Edad:',
+                r'Edlar\b': 'Editar',
+                r'Guysdar\b': 'Guardar',
                 r'Nambr': 'Nombre',
-                r'How': 'Nombre:',
-                r'Elad': 'Edad',
+                r'Hlow': 'Nombre:',
+                r'Dukescua Recpercz\b': 'Recuperar Contraseña',
                 r'Ldad': 'Edad:',
+                r'Eld': 'Edad',
+                r'Zjercou': 'Dirección:',
+                r'Diracoa:.': 'Dirección:',
+                r'Idicme\b': 'Idioma',
+                r'csPañcl\b': 'Español',
+                r'Imales\b': 'Ingles',
+                r'Raibic\b': 'Recibir',
+                r'Possucrd:': 'Password:',
+                r'Consvlle\b': 'Consulta',
+                r'Hed:ca\b': 'Medica',
+                r'S:': 'Si',
+                r'to Regis\b': 'Registro',
+                r'Enuiar\b': 'Enviar',
+                r'Can#dad:': 'Cantidad:',
+                r'Pcducho:': 'Producto:',
+                r'EMvic2\b': 'Envio?',
+                r'odocto\b': 'Producto',
+                r'Fiossk\b': 'Gloogle',
+                r'FacsbmK\b': 'Facebook',
+                r'We::': 'Email:',
+                r'logv\b': 'Login',
+                r'Cuevt\b': 'Cuenta',
+                r'Ancrro\b': 'Ahorro',
+                r'C:': 'Ci:',
+                r'Crrec\b': 'Correo',
+                r'Coentas\b': 'Cuentas',
+                r'Nombe': 'Nombre',
+                r'Acllido': 'Apellido:',
+                r'Enuio2\b': 'Envio?',
+                r'A pellido': 'Apellido',
+                r'Consvll2\b': 'Consulta',
+                r'5í\b': 'Si',
+                r'Casult\b': 'Consulta',
+                r'Uombr2': 'Nombre',
+                r'Ncmbre': 'Nombre:',
+                r'Asisfevcia2 Rre\b': 'Pre Asistencia?',
+                r'Cuevfa\b': 'Cuenta',
+                r'Enuio\b': 'Envio?',
+                r'Nombxe': 'Nombre',
+                r'C\b': 'Ci:',
+                r'Allido': 'Apellido:',
+                r'Ci:uenta\b': 'Cuenta',
+                r'Ci:redito\b': 'Credito',
+                r'Ci:orreo\b': 'Correo',
+                r'Ci:uentas\b': 'Cuentas',
+                r'horro\b': 'Ahorro',
+                r'Gioerder\b': 'Guardar',
+                r'Bxo:': 'Bio:',
+                r'SihoWeb:': 'Sitio Web:',
+                r'Ncmbrc:': 'Nombre:',
+                r'Ed:Yar\b': 'Editar',
+                r'Duscer\b': 'Buscar',
+                r'Busquede\b': 'Búsqueda',
+                r'FechaZual:': 'Fecha Inicia:',
+                r'alaSraClau:': 'Palabra Clave:',
+                r'FecheJuicie': 'Fecha Final:',
+                r'Invlar\b': 'Invitar',
+                r'Aviqo\b': 'Amigo',
+                r'Coveo:': 'Correo:',
+                r'Correc': 'Correo',
             }
 
             for pattern, correction in correction_rules.items():
@@ -202,8 +287,33 @@ class WidgetScanner:
                 raise FileNotFoundError(f"Imagen no encontrada: {image_path}")
 
             # 2. Inferencia
-            results = self.model.infer(image)[0]
+            results = self.model.infer(image, confidence=0.5, iou_threshold=0.7)[0]
             detections = sv.Detections.from_inference(results)
+
+            # --- INICIO: Nuevo bloque para filtrar AppBar duplicados ---
+            appbar_icon_indices = [
+                i for i, class_name in enumerate(detections.data['class_name'])
+                if class_name == "AppBar_icon"  # Asegúrate que coincida con el nombre de Roboflow
+            ]
+            if len(appbar_icon_indices) > 1:
+                # Conservar solo el AppBar_icon con mayor confianza
+                best_idx = max(
+                    appbar_icon_indices,
+                    key=lambda i: detections.confidence[i]
+                )
+
+                # Filtrar detecciones (eliminar otros AppBars)
+                mask = np.ones(len(detections), dtype=bool)
+                mask[appbar_icon_indices] = False
+                mask[best_idx] = True  # Mantener el mejor AppBar
+
+                detections = sv.Detections(
+                    xyxy=detections.xyxy[mask],
+                    confidence=detections.confidence[mask],
+                    class_id=detections.class_id[mask],
+                    data={'class_name': np.array(detections.data['class_name'])[mask]}
+                )
+            # --- FIN: Bloque de filtrado ---
 
             # 3. Estructura del reporte
             report = {
@@ -219,7 +329,11 @@ class WidgetScanner:
             NAME_MAPPING = {
                 "texfield_label": "label",
                 "texfield_hinttext": "hint",
-                "button_text": "text"
+                "button_text": "text",
+                "AppBar_title": "title",
+                "AppBar_icon": "icon",
+                "checkbox_text": "text",
+                "radio_text": "text",
             }
 
             # Procesar componentes principales
