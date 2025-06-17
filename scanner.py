@@ -23,11 +23,13 @@ class WidgetScanner:
         "checkbox": ["checkbox_text"],
         "radio": ["radio_text"],
         "Dropdown_menu": ["value_1", "value_2", "value_3", "value_4", "value_5", "value_6", "value_7"],
+        "Table": ["celda", "celda_text"],
     }
 
     # Componentes que requieren OCR
     OCR_COMPONENTS = ["Text", "texfield_hinttext", "texfield_label", "button_text", "AppBar_title", "checkbox_text",
-                      "radio_text", "value_1", "value_2", "value_3", "value_4", "value_5", "value_6", "value_7"]
+                      "radio_text", "value_1", "value_2", "value_3", "value_4", "value_5", "value_6", "value_7",
+                      "celda_text"]
 
     def __init__(self, model_id, api_key, output_dir="output_results"):
         """
@@ -118,9 +120,23 @@ class WidgetScanner:
         # 7. Para Dropdown_menu
         elif parent_type == "Dropdown_menu":
             if child_type.startswith("value_"):
-
-                return ( cx1 >= px1) and (cx2 <= px2) and (cy1 >= py1)
-
+                return (cx1 >= px1) and (cx2 <= px2) and (cy1 >= py1)
+        # 8 Para Table
+        elif parent_type == "Table" and child_type == "celda":
+            return (
+                    (cx1 >= px1 - 10) and
+                    (cx2 <= px2 + 10) and
+                    (cy1 >= py1 - 10) and
+                    (cy2 <= py2 + 10)
+            )
+        # relacion entre celda y celda_text
+        elif parent_type == "celda" and child_type == "celda_text":
+            return (
+                    (cx1 >= px1 - 5) and
+                    (cx2 <= px2 + 5) and
+                    (cy1 >= py1 - 5) and
+                    (cy2 <= py2 + 5)
+            )
         # 8. Para cualquier otro caso
         return False
 
@@ -257,7 +273,6 @@ class WidgetScanner:
                 r'Coveo:': 'Correo:',
                 r'Correc': 'Correo',
             }
-
             for pattern, correction in correction_rules.items():
                 raw_text = re.sub(pattern, correction, raw_text)
 
@@ -266,6 +281,119 @@ class WidgetScanner:
         except Exception as e:
             print(f"⚠️ Error mínimo: {str(e)}")
             return ""
+
+    def organize_table_cells(cells):
+        """Organiza celdas respetando:
+        1. Primera celda multi-columna (original).
+        2. Posiciones absolutas de columnas (nuevo para celdas faltantes).
+        3. Cálculo automático de column_span (original).
+        """
+        if not cells:
+            return []
+
+        # --- 1. Agrupación por filas (original) ---
+        sorted_cells = sorted(cells, key=lambda c: (c['coordinates']['y1'], c['coordinates']['x1']))
+        ROW_THRESHOLD = 20
+
+        rows = []
+        current_row = []
+
+        for cell in sorted_cells:
+            if not current_row:
+                current_row.append(cell)
+            else:
+                y_diff = abs(cell['coordinates']['y1'] - current_row[0]['coordinates']['y1'])
+                if y_diff < ROW_THRESHOLD:
+                    current_row.append(cell)
+                else:
+                    rows.append(sorted(current_row, key=lambda c: c['coordinates']['x1']))
+                    current_row = [cell]
+
+        if current_row:
+            rows.append(sorted(current_row, key=lambda c: c['coordinates']['x1']))
+
+        # --- 2. Detección de columnas (original + referencia de coordenadas X) ---
+        if not rows:
+            return []
+
+        first_row_cells = rows[0]
+        first_cell = first_row_cells[0]
+        total_width = first_row_cells[-1]['coordinates']['x2'] - first_row_cells[0]['coordinates']['x1']
+
+        # Caso especial: primera celda multi-columna (original)
+        if len(first_row_cells) == 1 and (
+                first_cell['coordinates']['x2'] - first_cell['coordinates']['x1']) >= total_width * 0.8:
+            num_columns = 3
+            column_width = total_width / num_columns
+            # Generamos referencia de columnas artificialmente
+            reference_columns = [first_cell['coordinates']['x1'] + i * column_width for i in range(num_columns)]
+            reference_columns.append(first_cell['coordinates']['x2'])
+        else:
+            # Caso normal: columnas basadas en la primera fila
+            num_columns = len(first_row_cells)
+            column_width = total_width / num_columns
+            reference_columns = [cell['coordinates']['x1'] for cell in first_row_cells]
+            reference_columns.append(first_row_cells[-1]['coordinates']['x2'])
+
+        # --- 3. Asignación de columnas (combina lógica original + nuevo col_index) ---
+        organized_rows = []
+
+        for row_idx, row in enumerate(rows):
+            row_data = {
+                'type': 'TableRow',
+                'coordinates': {
+                    'x1': min(c['coordinates']['x1'] for c in row),
+                    'y1': min(c['coordinates']['y1'] for c in row),
+                    'x2': max(c['coordinates']['x2'] for c in row),
+                    'y2': max(c['coordinates']['y2'] for c in row)
+                },
+                'children': []
+            }
+
+            for cell in sorted(row, key=lambda c: c['coordinates']['x1']):
+                cell_x1 = cell['coordinates']['x1']
+                cell_x2 = cell['coordinates']['x2']
+
+                # --- A) Cálculo de col_index (nuevo: basado en referencia_columns) ---
+                col_index = 0
+                min_distance = float('inf')
+                for i, ref_x in enumerate(reference_columns[:-1]):
+                    distance = abs(cell_x1 - ref_x)
+                    if distance < min_distance:
+                        min_distance = distance
+                        col_index = i
+
+                # --- B) Cálculo de column_span (original) ---
+                col_span = round((cell_x2 - cell_x1) / column_width)
+                col_span = max(1, min(col_span, num_columns - col_index))  # Asegura no pasarse
+
+                # --- C) Caso especial: primera celda multi-columna (original) ---
+                if row_idx == 0 and len(row) == 1:
+                    col_span = num_columns
+                    col_index = 0
+
+                # --- Construcción de la celda (original) ---
+                cell_widget = {
+                    'type': 'TableCell',
+                    'column': col_index,
+                    'column_span': col_span,
+                    'coordinates': cell['coordinates'],
+                    'child': None
+                }
+
+                if cell.get('subcomponents'):
+                    text_data = cell['subcomponents'][0]
+                    cell_widget['child'] = {
+                        'type': 'Text',
+                        'text': text_data.get('text', ''),
+                        'coordinates': text_data['coordinates']
+                    }
+
+                row_data['children'].append(cell_widget)
+
+            organized_rows.append(row_data)
+
+        return organized_rows
 
     def scan_image(self, image_path):
         """
@@ -334,6 +462,8 @@ class WidgetScanner:
                 "AppBar_icon": "icon",
                 "checkbox_text": "text",
                 "radio_text": "text",
+                "celda": "cell",
+                "celda_text": "cell_text",
             }
 
             # Procesar componentes principales
@@ -364,36 +494,71 @@ class WidgetScanner:
                         "y2": int(c_bbox[3])
                     },  # list(map(int, c_bbox)),
                     "confidence": float(c_conf),
-                    "subcomponents": []
+                    # "subcomponents": []
                 }
 
-                # Buscar subcomponentes relacionados
-                for s_bbox, s_conf, s_id, s_type in sub_detections:
-                    if s_type in self.COMPONENT_HIERARCHY.get(c_type, []):
-                        if self.is_related(
-                                [int(x) for x in c_bbox],
-                                [int(x) for x in s_bbox],
-                                c_type,
-                                s_type
-                        ):
-                            # Aplicar mapeo de nombres para el JSON
-                            json_type = NAME_MAPPING.get(s_type, s_type)
-                            subcomponent_data = {
-                                "type": json_type,
+                # Procesamiento especial para tablas
+                if c_type == "Table":
+                    table_cells = []
+                    for s_bbox, s_conf, s_id, s_type in sub_detections:
+                        if s_type == "celda" and self.is_related(c_bbox, s_bbox, c_type, s_type):
+                            cell_data = {
+                                "type": "celda",
                                 "coordinates": {
                                     "x1": int(s_bbox[0]),
                                     "y1": int(s_bbox[1]),
                                     "x2": int(s_bbox[2]),
                                     "y2": int(s_bbox[3])
-                                },  # list(map(int, s_bbox)),
-                                "confidence": float(s_conf)
+                                },
+                                "confidence": float(s_conf),
+                                "subcomponents": []
                             }
-                            # Extraer texto si es un componente que requiere OCR
-                            if s_type in self.OCR_COMPONENTS:
-                                subcomponent_data["text"] = self.extract_ui_text(image, s_bbox, s_type)
-                            component["subcomponents"].append(subcomponent_data)
 
-                # Extraer texto para componentes principales que requieren OCR
+                            # Buscar texto en la celda
+                            for txt_bbox, txt_conf, txt_id, txt_type in sub_detections:
+                                if txt_type == "celda_text" and self.is_related(s_bbox, txt_bbox, "celda", txt_type):
+                                    text_data = {
+                                        "type": "celda_text",
+                                        "coordinates": {
+                                            "x1": int(txt_bbox[0]),
+                                            "y1": int(txt_bbox[1]),
+                                            "x2": int(txt_bbox[2]),
+                                            "y2": int(txt_bbox[3])
+                                        },
+                                        "confidence": float(txt_conf),
+                                        "text": self.extract_ui_text(image, txt_bbox, txt_type)
+                                    }
+                                    cell_data["subcomponents"].append(text_data)
+
+                            table_cells.append(cell_data)
+
+                    # Organizar celdas en filas y columnas
+                    component["estructure"] = {
+                        "type": "Table",
+                        "children": self.organize_table_cells(table_cells)
+                    }
+                else:
+                    # Procesamiento normal para otros componentes
+                    component["subcomponents"] = []
+                    for s_bbox, s_conf, s_id, s_type in sub_detections:
+                        if s_type in self.COMPONENT_HIERARCHY.get(c_type, []):
+                            if self.is_related(c_bbox, s_bbox, c_type, s_type):
+                                subcomponent_data = {
+                                    "type": NAME_MAPPING.get(s_type, s_type),
+                                    "coordinates": {
+                                        "x1": int(s_bbox[0]),
+                                        "y1": int(s_bbox[1]),
+                                        "x2": int(s_bbox[2]),
+                                        "y2": int(s_bbox[3])
+                                    },
+                                    "confidence": float(s_conf)
+                                }
+
+                                if s_type in self.OCR_COMPONENTS:
+                                    subcomponent_data["text"] = self.extract_ui_text(image, s_bbox, s_type)
+                                component["subcomponents"].append(subcomponent_data)
+
+                # Extraer texto para componentes principales
                 if c_type in self.OCR_COMPONENTS:
                     component["text"] = self.extract_ui_text(image, c_bbox, c_type)
 

@@ -11,7 +11,7 @@ load_dotenv()
 
 # Configuración
 ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY")
-MODEL_ID = "ui_component_flutter/13"  # Nuevo model_id que funciona correctamente según test_api_key.py
+MODEL_ID = "ui_component_flutter/14"  # Nuevo model_id que funciona correctamente según test_api_key.py
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output_results'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
