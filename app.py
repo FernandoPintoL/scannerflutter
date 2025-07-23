@@ -27,7 +27,43 @@ app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 # Configurar CORS
-CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}}, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": ["http://127.0.0.1:8000", "http://localhost:8000", "http://localhost:5173", "http://127.0.0.1:5173", 
+                                         "http://127.0.0.1:1000", "http://localhost:1000"], 
+                             "methods": ["GET", "POST", "OPTIONS"], 
+                             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+                             "expose_headers": ["Content-Type", "Content-Length", "Authorization", "X-Requested-With", "Accept", "Origin"]
+                            }}, 
+     supports_credentials=True)
+
+# Agregar encabezados CORS a todas las respuestas
+@app.after_request
+def add_cors_headers(response):
+    response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
+
+# Manejar solicitudes OPTIONS para preflight CORS para /api/scan
+@app.route('/api/scan', methods=['OPTIONS'])
+def handle_api_scan_options():
+    response = app.make_default_options_response()
+    response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
+
+# Manejar solicitudes OPTIONS para cualquier ruta
+@app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
+@app.route('/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    response = app.make_default_options_response()
+    response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
 
 # Inicializar el escáner
 try:
@@ -172,11 +208,7 @@ def api_scan_image():
     return jsonify({'error': 'Tipo de archivo no permitido'}), 400
 
 if __name__ == '__main__':
-    # Get port from environment variable or default to 5000
-    # port = int(os.environ.get('PORT', 5000))
-    # In production, debug should be False
-    # debug = os.environ.get('FLASK_ENV', 'production') != 'production'
-    # app.run(debug=debug, host='0.0.0.0', port=port)
-    port = int(os.environ.get('PORT', 10000))
+    # Get port from environment variable or default to 1000
+    port = int(os.environ.get('PORT', 1000))
     # Siempre en modo producción en Render
     app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
